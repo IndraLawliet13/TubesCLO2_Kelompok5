@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 namespace TubesCLO2_Kelompok5
 {
     class Program
