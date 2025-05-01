@@ -1,15 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-namespace TubesCLO2_Kelompok5.Models;
 
-public class Mahasiswa
+namespace TubesCLO2_Kelompok5.Models
 {
-    [JsonPropertyName("nim")]
-    public required string NIM { get; set; }
+    public class Mahasiswa
+    {
+        [JsonPropertyName("nim")]
+        public required string NIM { get; set; }
 
     [JsonPropertyName("nama")]
     public required string Nama { get; set; }
