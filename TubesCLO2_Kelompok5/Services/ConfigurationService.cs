@@ -23,8 +23,7 @@ namespace TubesCLO2_Kelompok5.Services
             Debug.Assert(_configuration != null, "Configuration should not be null after build.");
 
             // Ambil URL API dari config
-            ApiBaseUrl = _configuration.GetValue<string>("ApiConfig:BaseUrl") ?? "http://localhost:5000"; // Fallback URL
-                                                                                                          // DbC: Pastikan URL tidak kosong
+            ApiBaseUrl = _configuration.GetValue<string>("ApiConfig:BaseUrl") ?? "http://localhost:5000"; // DbC: Pastikan URL tidak kosong
             ArgumentException.ThrowIfNullOrWhiteSpace(ApiBaseUrl, nameof(ApiBaseUrl));
             Console.WriteLine($"API Base URL set to: {ApiBaseUrl}"); // Debugging info
 
@@ -35,24 +34,20 @@ namespace TubesCLO2_Kelompok5.Services
             _messages = _configuration.GetSection($"AppConfig:Messages:{_defaultLanguage}")
                                       .Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
 
-            // DbC: Pastikan messages ter-load (minimal tidak null)
             Debug.Assert(_messages != null, $"Messages for language '{_defaultLanguage}' could not be loaded.");
         }
 
         public string GetMessage(string key, params object[] args)
         {
-            // DbC: Pastikan key tidak null atau kosong
             ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
 
             if (_messages.TryGetValue(key, out var messageFormat))
             {
-                // Pakai String.Format jika ada argumen
                 return args.Length > 0 ? string.Format(messageFormat, args) : messageFormat;
             }
 
-            // Fallback jika key tidak ditemukan
             Debug.WriteLine($"Warning: Message key '{key}' not found for language '{_defaultLanguage}'.");
-            return $"[{key}]"; // Kembalikan key sebagai indikator
+            return $"[{key}]";
         }
     }
 }
