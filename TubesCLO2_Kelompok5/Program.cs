@@ -104,6 +104,19 @@ public class Program
     {
         var mahasiswaBaru = new Mahasiswa { NIM = nim!, Nama = nama!, Jurusan = jurusan, IPK = ipk };
         var (success, conflict, createdMhs) = await _apiClient.AddMahasiswaAsync(mahasiswaBaru);
+        while (true)
+        {
+            if (InputValidator.IsValidNIM(nim)) break;
+        }
+        while (true)
+        {
+            if (InputValidator.IsNotEmpty(nama)) break;
+        }
+        while (true)
+        {
+            // ... (input ipkString)
+            if (InputValidator.IsValidIPK(ipkString, out ipk)) break;
+        }
     }
 
     private static async Task ViewAllStudentsAsync()
@@ -116,31 +129,134 @@ public class Program
     private static async Task SearchStudentAsync()
     {
         // ... 
-        var result = await _apiClient.GetAllMahasiswaAsync(nim, nama); 
-                                                                       
+        var result = await _apiClient.GetAllMahasiswaAsync(nim, nama);
+
     }
     private static async Task EditStudentAsync()
     {
-        // ... (Input NIM to edit)
-        var mhsLama = await _apiClient.GetMahasiswaByNIMAsync(nimToEdit!); // Ambil data lama
-        // ... 
-        var mhsUpdate = new Mahasiswa { /* ... data baru ... };
-        // ... (Konfirmasi)
-        if (/* confirmed */)
+        Console.WriteLine($"\n--- {_configService.GetMessage("EditOption")} ---");
+        Console.Write(_configService.GetMessage("InputNIM", " (yang akan diedit)")); // Tambahan teks
+        string? nimToEdit = Console.ReadLine();
+
+        if (!InputValidator.IsValidNIM(nimToEdit))
         {
+            Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", "NIM tidak valid."));
+            return;
+        }
+
+        Console.WriteLine(_configService.GetMessage("Searching"));
+        var mhsLama = await _apiClient.GetMahasiswaByNIMAsync(nimToEdit!); // Ambil data lama
+
+        if (mhsLama == null)
+        {
+            Console.WriteLine(_configService.GetMessage("ErrorNotFound"));
+            return;
+        }
+
+        Console.WriteLine("\nData Lama:");
+        Console.WriteLine(mhsLama);
+        Console.WriteLine("\nMasukkan Data Baru (kosongi jika tidak ingin ubah):");
+
+        // Input Nama Baru
+        Console.Write($"{_configService.GetMessage("InputName")} (Lama: {mhsLama.Nama}): ");
+        string? namaBaru = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(namaBaru)) namaBaru = mhsLama.Nama; // Pakai lama jika kosong
+        else if (!InputValidator.IsNotEmpty(namaBaru)) // Pastikan tidak cuma spasi
+        {
+            Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", "Nama tidak boleh hanya spasi."));
+            return;
+        }
+
+
+        // Input Jurusan Baru
+        Console.Write($"{_configService.GetMessage("InputMajor")} (Lama: {mhsLama.Jurusan ?? "-"}): ");
+        string? jurusanBaru = Console.ReadLine();
+        // Pakai lama jika user hanya input spasi, set null jika user input string kosong (menghapus jurusan)
+        if (string.IsNullOrWhiteSpace(jurusanBaru) && jurusanBaru != "") jurusanBaru = mhsLama.Jurusan;
+        else if (jurusanBaru == "") jurusanBaru = null;
+
+
+        // Input IPK Baru
+        double ipkBaruDouble;
+        Console.Write($"{_configService.GetMessage("InputGPA")} (Lama: {mhsLama.IPK:N2}): ");
+        string? ipkBaruString = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(ipkBaruString)) ipkBaruDouble = mhsLama.IPK; // Pakai lama jika kosong
+        else if (!InputValidator.IsValidIPK(ipkBaruString, out ipkBaruDouble))
+        {
+            Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", "Format IPK tidak valid."));
+            return;
+        }
+
+        var mhsUpdate = new Mahasiswa
+        {
+            NIM = mhsLama.NIM, // NIM tidak boleh diubah
+            Nama = namaBaru,
+            Jurusan = jurusanBaru,
+            IPK = ipkBaruDouble
+        };
+
+        Console.WriteLine("\nData Baru:");
+        Console.WriteLine(mhsUpdate);
+
+        if (InputValidator.GetYesNoInput(_configService.GetMessage("ConfirmEdit", mhsLama.NIM)))
+        {
+            Console.WriteLine(_configService.GetMessage("Updating"));
             var statusCode = await _apiClient.UpdateMahasiswaAsync(mhsLama.NIM, mhsUpdate);
-            // ... (Handle response status code)
+
+            if (statusCode == System.Net.HttpStatusCode.NoContent) // 204
+            {
+                Console.WriteLine(_configService.GetMessage("SuccessUpdate"));
+            }
+            else if (statusCode == System.Net.HttpStatusCode.NotFound) // 404
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorNotFound", "(Mungkin data sudah dihapus?)"));
+            }
+            else // Error lain
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal mengupdate data (Status: {statusCode})."));
+            }
         }
     }
 
     private static async Task DeleteStudentAsync()
     {
-        var mhs = await _apiClient.GetMahasiswaByNIMAsync(nimToDelete!); 
-                                                                         // ... (Handle not found, konfirmasi)
-        if (/* confirmed */)
+        Console.WriteLine($"\n--- {_configService.GetMessage("DeleteOption")} ---");
+        Console.Write(_configService.GetMessage("InputNIM", " (yang akan dihapus)"));
+        string? nimToDelete = Console.ReadLine();
+
+        if (!InputValidator.IsValidNIM(nimToDelete))
         {
+            Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", "NIM tidak valid."));
+            return;
+        }
+
+        Console.WriteLine(_configService.GetMessage("Searching"));
+        var mhs = await _apiClient.GetMahasiswaByNIMAsync(nimToDelete!);
+        if (mhs == null)
+        {
+            Console.WriteLine(_configService.GetMessage("ErrorNotFound"));
+            return;
+        }
+        Console.WriteLine($"Data ditemukan: {mhs}");
+
+
+        if (InputValidator.GetYesNoInput(_configService.GetMessage("ConfirmDelete", mhs.Nama, mhs.NIM)))
+        {
+            Console.WriteLine(_configService.GetMessage("Deleting"));
             var statusCode = await _apiClient.DeleteMahasiswaAsync(nimToDelete!);
-            // ... (Handle response status code)
+
+            if (statusCode == System.Net.HttpStatusCode.NoContent) // 204
+            {
+                Console.WriteLine(_configService.GetMessage("SuccessDelete"));
+            }
+            else if (statusCode == System.Net.HttpStatusCode.NotFound) // 404
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorNotFound", "(Mungkin sudah dihapus?)"));
+            }
+            else 
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal menghapus data (Status: {statusCode})."));
+            }
         }
     }
 }
