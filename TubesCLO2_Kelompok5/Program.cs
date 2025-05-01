@@ -1,1 +1,11 @@
-﻿Console.WriteLine("hello world");
+using System;
+namespace TubesCLO2_Kelompok5
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Program dimulai...");
+        }
+    }
+}
