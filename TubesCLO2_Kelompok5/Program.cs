@@ -3,9 +3,9 @@ namespace TubesCLO2_Kelompok5
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
-            Console.WriteLine("Hello World");
+            Console.WriteLine("Program dimulai...");
         }
     }
 }
