@@ -1,12 +1,7 @@
-﻿using System.Net.Http;
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using System.Diagnostics;
 using TubesCLO2_Kelompok5.Models;
-using Microsoft.Extensions.Configuration;
-using TubesCLO2_Kelompok5.Services;
-using TubesCLO2_Kelompok5.Utils;
-
 namespace TubesCLO2_Kelompok5.Services
 {
     public class MahasiswaApiClient
@@ -14,7 +9,6 @@ namespace TubesCLO2_Kelompok5.Services
         private readonly HttpClient _httpClient;
         private readonly ConfigurationService _configService;
         private readonly JsonSerializerOptions _jsonOptions;
-
         public MahasiswaApiClient(ConfigurationService configService)
         {
             ArgumentNullException.ThrowIfNull(configService, nameof(configService));
@@ -24,7 +18,6 @@ namespace TubesCLO2_Kelompok5.Services
             {
                 throw new ArgumentException("API Base URL is not configured.", nameof(_configService.ApiBaseUrl));
             }
-
             _httpClient = new HttpClient
             {
                 BaseAddress = new Uri(_configService.ApiBaseUrl)
@@ -32,18 +25,14 @@ namespace TubesCLO2_Kelompok5.Services
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
             _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
             Debug.Assert(_httpClient != null, "HttpClient should be initialized.");
             Debug.Assert(_httpClient.BaseAddress != null, "HttpClient BaseAddress should be set.");
         }
-
         private async Task<T?> GetAsync<T>(string requestUri) where T : class
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
             Debug.Assert(_httpClient != null, "HttpClient not initialized");
-
             try
             {
                 HttpResponseMessage response = await _httpClient.GetAsync(requestUri);
@@ -62,13 +51,11 @@ namespace TubesCLO2_Kelompok5.Services
                 return null;
             }
         }
-
         private async Task<HttpResponseMessage> PostAsync<T>(string requestUri, T data) where T : class
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
             ArgumentNullException.ThrowIfNull(data, nameof(data));
             Debug.Assert(_httpClient != null, "HttpClient not initialized");
-
             try
             {
                 return await _httpClient.PostAsJsonAsync(requestUri, data, _jsonOptions);
@@ -79,13 +66,11 @@ namespace TubesCLO2_Kelompok5.Services
                 return new HttpResponseMessage(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError);
             }
         }
-
         private async Task<HttpResponseMessage> PutAsync<T>(string requestUri, T data) where T : class
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
             ArgumentNullException.ThrowIfNull(data, nameof(data));
             Debug.Assert(_httpClient != null, "HttpClient not initialized");
-
             try
             {
                 return await _httpClient.PutAsJsonAsync(requestUri, data, _jsonOptions);
@@ -96,12 +81,10 @@ namespace TubesCLO2_Kelompok5.Services
                 return new HttpResponseMessage(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError);
             }
         }
-
         private async Task<HttpResponseMessage> DeleteAsync(string requestUri)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
             Debug.Assert(_httpClient != null, "HttpClient not initialized");
-
             try
             {
                 return await _httpClient.DeleteAsync(requestUri);
@@ -118,25 +101,21 @@ namespace TubesCLO2_Kelompok5.Services
             if (!string.IsNullOrWhiteSpace(nim)) queryParams.Add($"nim={Uri.EscapeDataString(nim)}");
             if (!string.IsNullOrWhiteSpace(nama)) queryParams.Add($"nama={Uri.EscapeDataString(nama)}");
             string queryString = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
-
             string requestUrl = $"api/mahasiswa{queryString}";
             _configService?.GetMessage("Searching");
             Console.WriteLine($"Calling API: GET {requestUrl}");
             return await GetAsync<List<Mahasiswa>>(requestUrl);
         }
-
         public async Task<System.Net.HttpStatusCode> UpdateMahasiswaAsync(string nim, Mahasiswa mhs)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(nim, nameof(nim));
             ArgumentNullException.ThrowIfNull(mhs, nameof(mhs));
             Debug.Assert(nim.Equals(mhs.NIM, StringComparison.OrdinalIgnoreCase), "NIM in URL must match NIM in body for PUT.");
-
             string requestUrl = $"api/mahasiswa/{Uri.EscapeDataString(nim)}";
             Console.WriteLine($"Calling API: PUT {requestUrl}");
             HttpResponseMessage response = await PutAsync(requestUrl, mhs);
             return response.StatusCode;
         }
-
         public async Task<System.Net.HttpStatusCode> DeleteMahasiswaAsync(string nim)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(nim, nameof(nim));
@@ -145,21 +124,17 @@ namespace TubesCLO2_Kelompok5.Services
                 _configService?.GetMessage("ErrorInvalidInput", $"Format NIM '{nim}' tidak valid."); 
                 return System.Net.HttpStatusCode.BadRequest;
             }
-
             string requestUrl = $"api/mahasiswa/{Uri.EscapeDataString(nim)}";
             Console.WriteLine($"Calling API: DELETE {requestUrl}");
             HttpResponseMessage response = await DeleteAsync(requestUrl);
             return response.StatusCode;
         }
-
         public async Task<(bool Success, bool Conflict, Mahasiswa? CreatedMahasiswa)> AddMahasiswaAsync(Mahasiswa mhs)
         {
             ArgumentNullException.ThrowIfNull(mhs, nameof(mhs));
-
             string requestUrl = "api/mahasiswa";
             Console.WriteLine($"Calling API: POST {requestUrl}");
             HttpResponseMessage response = await PostAsync(requestUrl, mhs);
-
             if (response.IsSuccessStatusCode)
             {
                 var created = await response.Content.ReadFromJsonAsync<Mahasiswa>(_jsonOptions);
@@ -171,19 +146,17 @@ namespace TubesCLO2_Kelompok5.Services
             }
             return (false, false, null);
         }
-
         public async Task<Mahasiswa?> GetMahasiswaByNIMAsync(string nim)
         {
             // DbC: Precondition
             ArgumentException.ThrowIfNullOrWhiteSpace(nim, nameof(nim));
-            if (!Utils.InputValidator.IsValidNIM(nim)) // Contoh pemakaian validator
+            if (!Utils.InputValidator.IsValidNIM(nim))
             {
                 Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", $"Format NIM '{nim}' tidak valid."));
-                return null; // Gagal cepat
+                return null;
             }
-
             string requestUrl = $"api/mahasiswa/{Uri.EscapeDataString(nim)}";
-            Console.WriteLine($"Calling API: GET {requestUrl}"); // Debug
+            Console.WriteLine($"Calling API: GET {requestUrl}");
             return await GetAsync<Mahasiswa>(requestUrl);
         }
     }
