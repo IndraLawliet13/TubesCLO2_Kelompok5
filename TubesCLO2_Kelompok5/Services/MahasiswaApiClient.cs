@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Diagnostics;
 using TubesCLO2_Kelompok5.Models;
 using Microsoft.Extensions.Configuration;
+using TubesCLO2_Kelompok5.Services;
 
 namespace MahasiswaCLI.Services
 {
@@ -22,7 +23,7 @@ namespace MahasiswaCLI.Services
 
             _httpClient = new HttpClient
             {
-                BaseAddress = new Uri(_configService.ApiBaseUrl)
+                BaseAddress = new Uri(_configService.ApiBaseUrl) 
             };
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(
@@ -34,32 +35,7 @@ namespace MahasiswaCLI.Services
             Debug.Assert(_httpClient.BaseAddress != null, "HttpClient BaseAddress should be set.");
         }
 
-        private async Task<T?> GetAsync<T>(string requestUri) where T : class
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
-            Debug.Assert(_httpClient != null, "HttpClient not initialized");
-
-            try
-            {
-                HttpResponseMessage response = await _httpClient.GetAsync(requestUri);
-                response.EnsureSuccessStatusCode();
-                return await response.Content.ReadFromJsonAsync<T>(_jsonOptions);
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"API Error (GET {requestUri}): {ex.Message} (Status: {ex.StatusCode})");
-
-                Debug.Assert(ex.StatusCode.HasValue && (int)ex.StatusCode.Value >= 400, "Exception should correspond to error status code.");
-                return null;
-            }
-            catch (JsonException ex)
-            {
-                Console.WriteLine($"JSON Error (GET {requestUri}): {ex.Message}");
-                return null;
-            }
-        }
-
-        private async Task<HttpResponseMessage> PostAsync<T>(string requestUri, T data) where T : class
+        private async Task<HttpResponseMessage> PutAsync<T>(string requestUri, T data) where T : class
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
             ArgumentNullException.ThrowIfNull(data, nameof(data));
@@ -67,11 +43,28 @@ namespace MahasiswaCLI.Services
 
             try
             {
-                return await _httpClient.PostAsJsonAsync(requestUri, data, _jsonOptions);
+                return await _httpClient.PutAsJsonAsync(requestUri, data, _jsonOptions);
             }
             catch (HttpRequestException ex)
             {
-                Console.WriteLine($"API Error (POST {requestUri}): {ex.Message}");
+                Console.WriteLine($"API Error (PUT {requestUri}): {ex.Message}");
+                return new HttpResponseMessage(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError);
+            }
+        }
+
+        private async Task<HttpResponseMessage> DeleteAsync(string requestUri)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
+            ArgumentNullException.ThrowIfNull(data, nameof(data));
+            Debug.Assert(_httpClient != null, "HttpClient not initialized");
+
+            try
+            {
+                return await _httpClient.DeleteAsync(requestUri);
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"API Error (DELETE {requestUri}): {ex.Message}");
                 return new HttpResponseMessage(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError);
             }
         }
