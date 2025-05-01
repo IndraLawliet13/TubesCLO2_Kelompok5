@@ -1,6 +1,10 @@
-﻿using System.Text.Json.Serialization; 
-
-namespace MahasiswaCLI.Models
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+namespace TubesCLO2_Kelompok5.Models
 {
     public class Mahasiswa
     {
