@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization; 
 
-namespace MahasiswaCLI.Models
+namespace TubesCLO2_Kelompok5
 {
     public class Mahasiswa
     {
