@@ -171,5 +171,20 @@ namespace TubesCLO2_Kelompok5.Services
             }
             return (false, false, null);
         }
+
+        public async Task<Mahasiswa?> GetMahasiswaByNIMAsync(string nim)
+        {
+            // DbC: Precondition
+            ArgumentException.ThrowIfNullOrWhiteSpace(nim, nameof(nim));
+            if (!Utils.InputValidator.IsValidNIM(nim)) // Contoh pemakaian validator
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", $"Format NIM '{nim}' tidak valid."));
+                return null; // Gagal cepat
+            }
+
+            string requestUrl = $"api/mahasiswa/{Uri.EscapeDataString(nim)}";
+            Console.WriteLine($"Calling API: GET {requestUrl}"); // Debug
+            return await GetAsync<Mahasiswa>(requestUrl);
+        }
     }
 }
