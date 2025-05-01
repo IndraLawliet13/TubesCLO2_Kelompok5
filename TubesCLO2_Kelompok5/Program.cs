@@ -1,4 +1,3 @@
-// Program.cs
 using TubesCLO2_Kelompok5.Models;
 using TubesCLO2_Kelompok5.Services;
 using TubesCLO2_Kelompok5.Utils;
@@ -19,6 +18,7 @@ public enum AppState
 
 public class Program
 {
+    private static MahasiswaApiClient _apiClient = null!;
     private static AppState _currentState = AppState.Initializing;
     private static readonly Dictionary<string, (string MessageKey, AppState TargetState)> _mainMenuOptions =
         new Dictionary<string, (string, AppState)>
@@ -98,6 +98,49 @@ public class Program
         else
         {
             Console.WriteLine(_configService.GetMessage("InvalidOption"));
+        }
+    }
+    private static async Task AddStudentAsync()
+    {
+        var mahasiswaBaru = new Mahasiswa { NIM = nim!, Nama = nama!, Jurusan = jurusan, IPK = ipk };
+        var (success, conflict, createdMhs) = await _apiClient.AddMahasiswaAsync(mahasiswaBaru);
+    }
+
+    private static async Task ViewAllStudentsAsync()
+    {
+        // ...
+        var mahasiswaList = await _apiClient.GetAllMahasiswaAsync();
+        // ... 
+    }
+
+    private static async Task SearchStudentAsync()
+    {
+        // ... 
+        var result = await _apiClient.GetAllMahasiswaAsync(nim, nama); 
+                                                                       
+    }
+    private static async Task EditStudentAsync()
+    {
+        // ... (Input NIM to edit)
+        var mhsLama = await _apiClient.GetMahasiswaByNIMAsync(nimToEdit!); // Ambil data lama
+        // ... 
+        var mhsUpdate = new Mahasiswa { /* ... data baru ... };
+        // ... (Konfirmasi)
+        if (/* confirmed */)
+        {
+            var statusCode = await _apiClient.UpdateMahasiswaAsync(mhsLama.NIM, mhsUpdate);
+            // ... (Handle response status code)
+        }
+    }
+
+    private static async Task DeleteStudentAsync()
+    {
+        var mhs = await _apiClient.GetMahasiswaByNIMAsync(nimToDelete!); 
+                                                                         // ... (Handle not found, konfirmasi)
+        if (/* confirmed */)
+        {
+            var statusCode = await _apiClient.DeleteMahasiswaAsync(nimToDelete!);
+            // ... (Handle response status code)
         }
     }
 }
