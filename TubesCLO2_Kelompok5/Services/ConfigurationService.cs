@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
-
 namespace TubesCLO2_Kelompok5.Services
 {
     public class ConfigurationService
@@ -8,9 +7,7 @@ namespace TubesCLO2_Kelompok5.Services
         private readonly IConfiguration _configuration;
         private readonly string _defaultLanguage;
         private readonly Dictionary<string, string> _messages;
-
         public string ApiBaseUrl { get; }
-
         public ConfigurationService()
         {
             // Setup configuration provider
@@ -29,11 +26,9 @@ namespace TubesCLO2_Kelompok5.Services
 
             // Ambil bahasa default
             _defaultLanguage = _configuration.GetValue<string>("AppConfig:DefaultLanguage") ?? "id";
-
             // Load messages untuk bahasa default
             _messages = _configuration.GetSection($"AppConfig:Messages:{_defaultLanguage}")
                                       .Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
-
             Debug.Assert(_messages != null, $"Messages for language '{_defaultLanguage}' could not be loaded.");
         }
 
