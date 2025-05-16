@@ -146,21 +146,27 @@ public class Program
         }
         var mahasiswaBaru = new Mahasiswa { NIM = nim!, Nama = nama!, Jurusan = jurusan, IPK = ipk };
         Console.WriteLine(_configService.GetMessage("Adding"));
-
-        var (success, conflict, createdMhs) = await _apiClient.AddMahasiswaAsync(mahasiswaBaru);
-        if (success)
+        var apiResponse = await _apiClient.AddMahasiswaAsync(mahasiswaBaru);
+        if (apiResponse != null)
         {
-            Console.WriteLine(_configService.GetMessage("SuccessAdd"));
-            Debug.Assert(createdMhs != null, "Created Mahasiswa object should not be null on success.");
-            Console.WriteLine(createdMhs);
-        }
-        else if (conflict)
-        {
-            Console.WriteLine(_configService.GetMessage("ErrorAlreadyExists", nim!));
+            if (apiResponse.Status == 201 && apiResponse.Data != null)
+            {
+                Console.WriteLine(_configService.GetMessage("SuccessAdd"));
+                Debug.Assert(apiResponse.Data != null, "Created Mahasiswa object should not be null on success.");
+                Console.WriteLine(apiResponse.Data);
+            }
+            else if (apiResponse.Status == 409)
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorAlreadyExists", nim!));
+            }
+            else
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal menambahkan mahasiswa (Status API: {apiResponse.Status})."));
+            }
         }
         else
         {
-            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal menambahkan mahasiswa."));
+            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal menambahkan mahasiswa, respons API tidak diterima/valid."));
         }
         WaitForEnter();
     }
@@ -168,25 +174,32 @@ public class Program
     {
         Console.WriteLine($"\n--- {_configService.GetMessage("ViewAllOption")} ---");
         Console.WriteLine(_configService.GetMessage("Searching"));
-        var mahasiswaList = await _apiClient.GetAllMahasiswaAsync();
-        if (mahasiswaList != null && mahasiswaList.Any())
+        var apiResponse = await _apiClient.GetAllMahasiswaAsync();
+        if (apiResponse != null && apiResponse.Status == 200 && apiResponse.Data != null)
         {
-            // DbC: Postcondition
-            Debug.Assert(mahasiswaList.All(m => m != null), "All Mahasiswa objects in the list should be non-null.");
-            Console.WriteLine("Daftar Mahasiswa:");
-            int count = 1;
-            foreach (var mhs in mahasiswaList)
+            List<Mahasiswa> mahasiswaList = apiResponse.Data;
+            if (mahasiswaList.Any())
             {
-                Console.WriteLine($"{count++}. {mhs}");
+                Debug.Assert(mahasiswaList.All(m => m != null), "All Mahasiswa objects in the list should be non-null.");
+                Console.WriteLine("Daftar Mahasiswa:");
+                int count = 1;
+                foreach (var mhs in mahasiswaList)
+                {
+                    Console.WriteLine($"{count++}. {mhs}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Belum ada data mahasiswa atau data kosong sesuai pencarian.");
             }
         }
-        else if (mahasiswaList != null)
+        else if (apiResponse != null)
         {
-            Console.WriteLine("Belum ada data mahasiswa.");
+            Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal mengambil data (Status API: {apiResponse.Status})."));
         }
         else
         {
-            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal mengambil data."));
+            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal mengambil data, respons API tidak diterima/valid."));
         }
     }
     private static async Task SearchStudentAsync()
@@ -212,23 +225,31 @@ public class Program
             return;
         }
         Console.WriteLine(_configService.GetMessage("Searching"));
-        var result = await _apiClient.GetAllMahasiswaAsync(nim, nama);
-        if (result != null && result.Any())
+        var apiResponse = await _apiClient.GetAllMahasiswaAsync(nim, nama);
+        if (apiResponse != null && apiResponse.Status == 200 && apiResponse.Data != null)
         {
-            Console.WriteLine("Hasil Pencarian:");
-            int count = 1;
-            foreach (var mhs in result)
+            List<Mahasiswa> result = apiResponse.Data;
+            if (result.Any())
             {
-                Console.WriteLine($"{count++}. {mhs}");
+                Console.WriteLine("Hasil Pencarian:");
+                int count = 1;
+                foreach (var mhs in result)
+                {
+                    Console.WriteLine($"{count++}. {mhs}");
+                }
+            }
+            else
+            {
+                Console.WriteLine(_configService.GetMessage("ErrorNotFound"));
             }
         }
-        else if (result != null)
+        else if (apiResponse != null)
         {
-            Console.WriteLine(_configService.GetMessage("ErrorNotFound"));
+            Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal mencari data (Status API: {apiResponse.Status})."));
         }
         else
         {
-            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal mencari data."));
+            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal mencari data, respons API tidak diterima/valid."));
         }
     }
     private static async Task EditStudentAsync()
@@ -242,7 +263,21 @@ public class Program
             return;
         }
         Console.WriteLine(_configService.GetMessage("Searching"));
-        var mhsLama = await _apiClient.GetMahasiswaByNIMAsync(nimToEdit!);
+        var apiGetResponse = await _apiClient.GetMahasiswaByNIMAsync(nimToEdit!);
+        Mahasiswa? mhsLama = null;
+        if (apiGetResponse != null && apiGetResponse.Status == 200 && apiGetResponse.Data != null) // 200 OK
+        {
+            mhsLama = apiGetResponse.Data;
+        }
+        else if (apiGetResponse != null)
+        {
+            return;
+        }
+        else
+        {
+            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal mengambil data mahasiswa untuk diedit."));
+            return;
+        }
         if (mhsLama == null)
         {
             Console.WriteLine(_configService.GetMessage("ErrorNotFound"));
@@ -253,8 +288,8 @@ public class Program
         Console.WriteLine("\nMasukkan Data Baru (kosongi jika tidak ingin ubah):");
         Console.Write($"{_configService.GetMessage("InputName")} (Lama: {mhsLama.Nama}): ");
         string? namaBaru = Console.ReadLine();
-        if (string.IsNullOrWhiteSpace(namaBaru)) namaBaru = mhsLama.Nama; // Pakai lama jika kosong
-        else if (!InputValidator.IsNotEmpty(namaBaru)) // Pastikan tidak cuma spasi
+        if (string.IsNullOrWhiteSpace(namaBaru)) namaBaru = mhsLama.Nama;
+        else if (!InputValidator.IsNotEmpty(namaBaru))
         {
             Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", "Nama tidak boleh hanya spasi."));
             return;
@@ -266,7 +301,7 @@ public class Program
         double ipkBaruDouble;
         Console.Write($"{_configService.GetMessage("InputGPA")} (Lama: {mhsLama.IPK:N2}): ");
         string? ipkBaruString = Console.ReadLine();
-        if (string.IsNullOrWhiteSpace(ipkBaruString)) ipkBaruDouble = mhsLama.IPK; // Pakai lama jika kosong
+        if (string.IsNullOrWhiteSpace(ipkBaruString)) ipkBaruDouble = mhsLama.IPK;
         else if (!InputValidator.IsValidIPK(ipkBaruString, out ipkBaruDouble))
         {
             Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", "Format IPK tidak valid."));
@@ -274,8 +309,8 @@ public class Program
         }
         var mhsUpdate = new Mahasiswa
         {
-            NIM = mhsLama.NIM, // NIM tidak boleh diubah
-            Nama = namaBaru,
+            NIM = mhsLama.NIM,
+            Nama = namaBaru!,
             Jurusan = jurusanBaru,
             IPK = ipkBaruDouble
         };
@@ -284,19 +319,25 @@ public class Program
         if (InputValidator.GetYesNoInput(_configService.GetMessage("ConfirmEdit", mhsLama.NIM)))
         {
             Console.WriteLine(_configService.GetMessage("Updating"));
-            var statusCode = await _apiClient.UpdateMahasiswaAsync(mhsLama.NIM, mhsUpdate);
-
-            if (statusCode == System.Net.HttpStatusCode.NoContent)
+            var apiUpdateResponse = await _apiClient.UpdateMahasiswaAsync(mhsLama.NIM, mhsUpdate);
+            if (apiUpdateResponse != null)
             {
-                Console.WriteLine(_configService.GetMessage("SuccessUpdate"));
+                if (apiUpdateResponse.Status == 200)
+                {
+                    Console.WriteLine(_configService.GetMessage("SuccessUpdate"));
+                }
+                else if (apiUpdateResponse.Status == 404)
+                {
+                    Console.WriteLine(_configService.GetMessage("ErrorNotFound", "(Mungkin data sudah dihapus saat proses edit?)"));
+                }
+                else
+                {
+                    Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal mengupdate data (Status API: {apiUpdateResponse.Status})."));
+                }
             }
-            else if (statusCode == System.Net.HttpStatusCode.NotFound)
+            else
             {
-                Console.WriteLine(_configService.GetMessage("ErrorNotFound", "(Mungkin data sudah dihapus?)"));
-            }
-            else // Error lain
-            {
-                Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal mengupdate data (Status: {statusCode})."));
+                Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal mengupdate data, respons API tidak diterima/valid."));
             }
         }
     }
@@ -311,7 +352,23 @@ public class Program
             return;
         }
         Console.WriteLine(_configService.GetMessage("Searching"));
-        var mhs = await _apiClient.GetMahasiswaByNIMAsync(nimToDelete!);
+        var apiGetResponse = await _apiClient.GetMahasiswaByNIMAsync(nimToDelete!);
+        Mahasiswa? mhs = null;
+
+        if (apiGetResponse != null && apiGetResponse.Status == 200 && apiGetResponse.Data != null) // 200 OK
+        {
+            mhs = apiGetResponse.Data;
+        }
+        else if (apiGetResponse != null)
+        {
+            Console.WriteLine(_configService.GetMessage("ErrorNotFound"));
+            return;
+        }
+        else
+        {
+            Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal mengambil data mahasiswa untuk dihapus."));
+            return;
+        }
         if (mhs == null)
         {
             Console.WriteLine(_configService.GetMessage("ErrorNotFound"));
@@ -321,18 +378,25 @@ public class Program
         if (InputValidator.GetYesNoInput(_configService.GetMessage("ConfirmDelete", mhs.Nama, mhs.NIM)))
         {
             Console.WriteLine(_configService.GetMessage("Deleting"));
-            var statusCode = await _apiClient.DeleteMahasiswaAsync(nimToDelete!);
-            if (statusCode == System.Net.HttpStatusCode.NoContent)
+            var apiDeleteResponse = await _apiClient.DeleteMahasiswaAsync(nimToDelete!);
+            if (apiDeleteResponse != null)
             {
-                Console.WriteLine(_configService.GetMessage("SuccessDelete"));
-            }
-            else if (statusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                Console.WriteLine(_configService.GetMessage("ErrorNotFound", "(Mungkin sudah dihapus?)"));
+                if (apiDeleteResponse.Status == 200)
+                {
+                    Console.WriteLine(_configService.GetMessage("SuccessDelete"));
+                }
+                else if (apiDeleteResponse.Status == 404)
+                {
+                    Console.WriteLine(_configService.GetMessage("ErrorNotFound", "(Mungkin sudah dihapus?)"));
+                }
+                else
+                {
+                    Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal menghapus data (Status API: {apiDeleteResponse.Status})."));
+                }
             }
             else
             {
-                Console.WriteLine(_configService.GetMessage("ErrorApi", $"Gagal menghapus data (Status: {statusCode})."));
+                Console.WriteLine(_configService.GetMessage("ErrorApi", "Gagal menghapus data, respons API tidak diterima/valid."));
             }
         }
     }

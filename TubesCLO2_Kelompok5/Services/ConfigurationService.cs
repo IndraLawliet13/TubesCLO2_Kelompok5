@@ -31,16 +31,13 @@ namespace TubesCLO2_Kelompok5.Services
                                       .Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
             Debug.Assert(_messages != null, $"Messages for language '{_defaultLanguage}' could not be loaded.");
         }
-
         public string GetMessage(string key, params object[] args)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
-
             if (_messages.TryGetValue(key, out var messageFormat))
             {
                 return args.Length > 0 ? string.Format(messageFormat, args) : messageFormat;
             }
-
             Debug.WriteLine($"Warning: Message key '{key}' not found for language '{_defaultLanguage}'.");
             return $"[{key}]";
         }

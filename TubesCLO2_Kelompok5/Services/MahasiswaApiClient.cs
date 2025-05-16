@@ -29,28 +29,6 @@ namespace TubesCLO2_Kelompok5.Services
             Debug.Assert(_httpClient != null, "HttpClient should be initialized.");
             Debug.Assert(_httpClient.BaseAddress != null, "HttpClient BaseAddress should be set.");
         }
-        private async Task<T?> GetAsync<T>(string requestUri) where T : class
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
-            Debug.Assert(_httpClient != null, "HttpClient not initialized");
-            try
-            {
-                HttpResponseMessage response = await _httpClient.GetAsync(requestUri);
-                response.EnsureSuccessStatusCode(); 
-                return await response.Content.ReadFromJsonAsync<T>(_jsonOptions);
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"API Error (GET {requestUri}): {ex.Message} (Status: {(ex.StatusCode.HasValue ? ex.StatusCode.Value.ToString() : "N/A")})");
-                Debug.Assert(ex.StatusCode.HasValue && (int)ex.StatusCode.Value >= 400, "Exception should correspond to error status code.");
-                return null;
-            }
-            catch (JsonException ex)
-            {
-                Console.WriteLine($"JSON Error (GET {requestUri}): {ex.Message}");
-                return null;
-            }
-        }
         private async Task<HttpResponseMessage> PostAsync<T>(string requestUri, T data) where T : class
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(requestUri, nameof(requestUri));
@@ -95,7 +73,7 @@ namespace TubesCLO2_Kelompok5.Services
                 return new HttpResponseMessage(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError);
             }
         }
-        public async Task<IEnumerable<Mahasiswa>?> GetAllMahasiswaAsync(string? nim = null, string? nama = null)
+        public async Task<ApiResponse<List<Mahasiswa>>?> GetAllMahasiswaAsync(string? nim = null, string? nama = null)
         {
             var queryParams = new List<string>();
             if (!string.IsNullOrWhiteSpace(nim)) queryParams.Add($"nim={Uri.EscapeDataString(nim)}");
@@ -104,60 +82,202 @@ namespace TubesCLO2_Kelompok5.Services
             string requestUrl = $"api/mahasiswa{queryString}";
             _configService?.GetMessage("Searching");
             Console.WriteLine($"Calling API: GET {requestUrl}");
-            return await GetAsync<List<Mahasiswa>>(requestUrl);
+
+            try
+            {
+                HttpResponseMessage httpResponseMessage = await _httpClient.GetAsync(requestUrl);
+                string jsonResponse = await httpResponseMessage.Content.ReadAsStringAsync();
+                var apiResponse = JsonSerializer.Deserialize<ApiResponse<List<Mahasiswa>>>(jsonResponse, _jsonOptions);
+                if (apiResponse != null)
+                {
+                    Console.WriteLine($"API Message: {apiResponse.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"Gagal memproses respons dari API (GET {requestUrl}). Respons tidak valid.");
+                    return null;
+                }
+                return apiResponse;
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"API Error (GET {requestUrl}): {ex.Message} (Status: {(ex.StatusCode.HasValue ? ex.StatusCode.Value.ToString() : "N/A")})");
+                return new ApiResponse<List<Mahasiswa>> { Status = (int)(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError), Message = ex.Message, Data = null };
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"JSON Error (GET {requestUrl}): {ex.Message}");
+                return new ApiResponse<List<Mahasiswa>> { Status = 500, Message = $"Kesalahan format JSON: {ex.Message}", Data = null };
+            }
+            catch (Exception ex) // Catch-all untuk error tak terduga
+            {
+                Console.WriteLine($"Unexpected error (GET {requestUrl}): {ex.Message}");
+                return new ApiResponse<List<Mahasiswa>> { Status = 500, Message = $"Kesalahan tidak terduga: {ex.Message}", Data = null };
+            }
         }
-        public async Task<System.Net.HttpStatusCode> UpdateMahasiswaAsync(string nim, Mahasiswa mhs)
+        public async Task<ApiResponse<Mahasiswa>?> UpdateMahasiswaAsync(string nim, Mahasiswa mhs)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(nim, nameof(nim));
             ArgumentNullException.ThrowIfNull(mhs, nameof(mhs));
             Debug.Assert(nim.Equals(mhs.NIM, StringComparison.OrdinalIgnoreCase), "NIM in URL must match NIM in body for PUT.");
             string requestUrl = $"api/mahasiswa/{Uri.EscapeDataString(nim)}";
             Console.WriteLine($"Calling API: PUT {requestUrl}");
-            HttpResponseMessage response = await PutAsync(requestUrl, mhs);
-            return response.StatusCode;
+            try
+            {
+                HttpResponseMessage httpResponseMessage = await PutAsync(requestUrl, mhs);
+                string jsonResponse = await httpResponseMessage.Content.ReadAsStringAsync();
+                var apiResponse = JsonSerializer.Deserialize<ApiResponse<Mahasiswa>>(jsonResponse, _jsonOptions);
+                if (apiResponse != null)
+                {
+                    Console.WriteLine($"API Message: {apiResponse.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"Gagal memproses respons dari API (PUT {requestUrl}). Respons tidak valid.");
+                    return null;
+                }
+                return apiResponse;
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"API Error (PUT {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = (int)(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError), Message = ex.Message, Data = null };
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"JSON Error (PUT {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = 500, Message = $"Kesalahan format JSON: {ex.Message}", Data = null };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error (PUT {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = 500, Message = $"Kesalahan tidak terduga: {ex.Message}", Data = null };
+            }
         }
-        public async Task<System.Net.HttpStatusCode> DeleteMahasiswaAsync(string nim)
+        public async Task<ApiResponse<object>?> DeleteMahasiswaAsync(string nim)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(nim, nameof(nim));
             if (!Utils.InputValidator.IsValidNIM(nim))
             {
-                _configService?.GetMessage("ErrorInvalidInput", $"Format NIM '{nim}' tidak valid."); 
-                return System.Net.HttpStatusCode.BadRequest;
+                string invalidMsg = _configService.GetMessage("ErrorInvalidInput", $"Format NIM '{nim}' tidak valid.");
+                Console.WriteLine(invalidMsg);
+                return new ApiResponse<object> { Status = 400, Message = invalidMsg, Data = null };
             }
             string requestUrl = $"api/mahasiswa/{Uri.EscapeDataString(nim)}";
             Console.WriteLine($"Calling API: DELETE {requestUrl}");
-            HttpResponseMessage response = await DeleteAsync(requestUrl);
-            return response.StatusCode;
+            try
+            {
+                HttpResponseMessage httpResponseMessage = await DeleteAsync(requestUrl);
+                string jsonResponse = await httpResponseMessage.Content.ReadAsStringAsync();
+                var apiResponse = JsonSerializer.Deserialize<ApiResponse<object>>(jsonResponse, _jsonOptions);
+
+                if (apiResponse != null)
+                {
+                    Console.WriteLine($"API Message: {apiResponse.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"Gagal memproses respons dari API (DELETE {requestUrl}). Respons tidak valid.");
+                    return null;
+                }
+                return apiResponse;
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"API Error (DELETE {requestUrl}): {ex.Message}");
+                return new ApiResponse<object> { Status = (int)(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError), Message = ex.Message, Data = null };
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"JSON Error (DELETE {requestUrl}): {ex.Message}");
+                return new ApiResponse<object> { Status = 500, Message = $"Kesalahan format JSON: {ex.Message}", Data = null };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error (DELETE {requestUrl}): {ex.Message}");
+                return new ApiResponse<object> { Status = 500, Message = $"Kesalahan tidak terduga: {ex.Message}", Data = null };
+            }
         }
-        public async Task<(bool Success, bool Conflict, Mahasiswa? CreatedMahasiswa)> AddMahasiswaAsync(Mahasiswa mhs)
+        public async Task<ApiResponse<Mahasiswa>?> AddMahasiswaAsync(Mahasiswa mhs)
         {
             ArgumentNullException.ThrowIfNull(mhs, nameof(mhs));
             string requestUrl = "api/mahasiswa";
             Console.WriteLine($"Calling API: POST {requestUrl}");
-            HttpResponseMessage response = await PostAsync(requestUrl, mhs);
-            if (response.IsSuccessStatusCode)
+            try
             {
-                var created = await response.Content.ReadFromJsonAsync<Mahasiswa>(_jsonOptions);
-                return (true, false, created);
+                HttpResponseMessage httpResponseMessage = await PostAsync(requestUrl, mhs);
+                string jsonResponse = await httpResponseMessage.Content.ReadAsStringAsync();
+                var apiResponse = JsonSerializer.Deserialize<ApiResponse<Mahasiswa>>(jsonResponse, _jsonOptions);
+
+                if (apiResponse != null)
+                {
+                    Console.WriteLine($"API Message: {apiResponse.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"Gagal memproses respons dari API (POST {requestUrl}). Respons tidak valid.");
+                    return null;
+                }
+                return apiResponse;
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            catch (HttpRequestException ex)
             {
-                return (false, true, null);
+                Console.WriteLine($"API Error (POST {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = (int)(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError), Message = ex.Message, Data = null };
             }
-            return (false, false, null);
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"JSON Error (POST {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = 500, Message = $"Kesalahan format JSON: {ex.Message}", Data = null };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error (POST {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = 500, Message = $"Kesalahan tidak terduga: {ex.Message}", Data = null };
+            }
         }
-        public async Task<Mahasiswa?> GetMahasiswaByNIMAsync(string nim)
+        public async Task<ApiResponse<Mahasiswa>?> GetMahasiswaByNIMAsync(string nim)
         {
-            // DbC: Precondition
             ArgumentException.ThrowIfNullOrWhiteSpace(nim, nameof(nim));
             if (!Utils.InputValidator.IsValidNIM(nim))
             {
-                Console.WriteLine(_configService.GetMessage("ErrorInvalidInput", $"Format NIM '{nim}' tidak valid."));
-                return null;
+                string invalidMsg = _configService.GetMessage("ErrorInvalidInput", $"Format NIM '{nim}' tidak valid.");
+                Console.WriteLine(invalidMsg);
+                return new ApiResponse<Mahasiswa> { Status = 400, Message = invalidMsg, Data = null };
             }
             string requestUrl = $"api/mahasiswa/{Uri.EscapeDataString(nim)}";
             Console.WriteLine($"Calling API: GET {requestUrl}");
-            return await GetAsync<Mahasiswa>(requestUrl);
+            try
+            {
+                HttpResponseMessage httpResponseMessage = await _httpClient.GetAsync(requestUrl);
+                string jsonResponse = await httpResponseMessage.Content.ReadAsStringAsync();
+                var apiResponse = JsonSerializer.Deserialize<ApiResponse<Mahasiswa>>(jsonResponse, _jsonOptions);
+                if (apiResponse != null)
+                {
+                    Console.WriteLine($"API Message: {apiResponse.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"Gagal memproses respons dari API (GET {requestUrl}). Respons tidak valid.");
+                    return null;
+                }
+                return apiResponse;
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"API Error (GET {requestUrl}): {ex.Message} (Status: {(ex.StatusCode.HasValue ? ex.StatusCode.Value.ToString() : "N/A")})");
+                return new ApiResponse<Mahasiswa> { Status = (int)(ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError), Message = ex.Message, Data = null };
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"JSON Error (GET {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = 500, Message = $"Kesalahan format JSON: {ex.Message}", Data = null };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error (GET {requestUrl}): {ex.Message}");
+                return new ApiResponse<Mahasiswa> { Status = 500, Message = $"Kesalahan tidak terduga: {ex.Message}", Data = null };
+            }
         }
     }
 }
