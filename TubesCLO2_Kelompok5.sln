@@ -5,7 +5,7 @@ VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TubesCLO2_Kelompok5", "TubesCLO2_Kelompok5\TubesCLO2_Kelompok5.csproj", "{0585CB13-8181-45DB-ADF1-72F96BC267F5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTestProject1", "UnitTestProject1\UnitTestProject1.csproj", "{AB579453-8809-4FB4-AD36-32DFFDEC20CB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TubesCLO2_Kelompok5.Test", "TubesCLO2_Kelompok5.Test\TubesCLO2_Kelompok5.Test.csproj", "{571599D2-0431-41CE-A336-C6A23CC4FA4C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{0585CB13-8181-45DB-ADF1-72F96BC267F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0585CB13-8181-45DB-ADF1-72F96BC267F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0585CB13-8181-45DB-ADF1-72F96BC267F5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AB579453-8809-4FB4-AD36-32DFFDEC20CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AB579453-8809-4FB4-AD36-32DFFDEC20CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AB579453-8809-4FB4-AD36-32DFFDEC20CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AB579453-8809-4FB4-AD36-32DFFDEC20CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{571599D2-0431-41CE-A336-C6A23CC4FA4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{571599D2-0431-41CE-A336-C6A23CC4FA4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{571599D2-0431-41CE-A336-C6A23CC4FA4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{571599D2-0431-41CE-A336-C6A23CC4FA4C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
